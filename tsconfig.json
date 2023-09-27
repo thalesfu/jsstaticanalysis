@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "jsx": "react",
+    "strict": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,               // Enable downlevel iteration
+    "moduleResolution": "node",               // Use Node.js module resolution
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+  },
+  "exclude": [
+    "node_modules"
+  ]
+}
