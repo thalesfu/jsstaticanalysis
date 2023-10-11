@@ -13,6 +13,7 @@ import Interface from "./interface";
 import TypeAlias from "./typealias";
 import PackageDirectory from "./packagedirectory";
 import Module from "./module";
+import Repository from "./repository";
 
 export class File {
     private readonly _name: string;
@@ -21,7 +22,8 @@ export class File {
     private readonly _imports: Map<string, Import> = new Map<string, Import>();
     private readonly _crnPage: Map<string, CRNPage> = new Map<string, CRNPage>();
     private readonly _path: string;
-    private readonly _parent: Directory | Package | PackageDirectory;
+    private readonly _directory: Directory | Package | PackageDirectory;
+    private readonly _root: Package | Repository;
     private readonly _classes: Map<string, Class> = new Map<string, Class>();
     private readonly _variables: Map<string, Variable> = new Map<string, Variable>();
     private readonly _namespaces: Map<string, Namespace> = new Map<string, Namespace>();
@@ -29,16 +31,17 @@ export class File {
     private readonly _interfaces: Map<string, Interface> = new Map<string, Interface>();
     private readonly _typeAliases: Map<string, TypeAlias> = new Map<string, TypeAlias>();
 
-    constructor(location: string, parent: Directory | Package | PackageDirectory) {
+    constructor(location: string, parent: Directory | PackageDirectory) {
         this._location = location;
         this._name = path.basename(location);
-        this._parent = parent;
+        this._directory = parent;
+        this._root = parent instanceof PackageDirectory ? parent.package : parent.repo;
         this._path = path.join(parent.path, path.basename(location, path.extname(location)))
-        this._parent.files.set(this.path, this)
+        this._directory.files.set(this.path, this)
+        this._root.files.set(this.path, this)
 
         const scriptKindElement = ts.ScriptKind[path.extname(this._name).toUpperCase().replace("\.", "") as keyof typeof ts.ScriptKind];
         this._ast = ts.createSourceFile(location, fs.readFileSync(location, 'utf-8'), ts.ScriptTarget.ES2015, true, scriptKindElement);
-        this._crnPage = File.getCRNPage(this);
 
         visitAllChildren(this._ast, (node) => {
             if (ts.isClassDeclaration(node)) {
@@ -93,8 +96,8 @@ export class File {
         return this._ast;
     }
 
-    public get parent(): Directory | Package | PackageDirectory {
-        return this._parent;
+    public get directory(): Directory | Package | PackageDirectory {
+        return this._directory;
     }
 
     public get imports(): Map<string, Import> {
@@ -129,23 +132,8 @@ export class File {
         return this._modules;
     }
 
-    public IsCRNPage(ast: ts.ClassDeclaration): boolean {
-        if (ast.heritageClauses) {
-            for (const heritageClause of ast.heritageClauses) {
-                for (const type of heritageClause.types) {
-                    const typeName = type.expression.getText();
-                    if (typeName !== "Page") {
-                        return false;
-                    }
-
-                    if (this._imports.get(typeName)?.isCRNPage ?? false) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+    public get root(): Package | Repository {
+        return this._root;
     }
 
     static getImportNames(node: ts.ImportDeclaration): string[] {
@@ -225,7 +213,7 @@ export class File {
 
         rc.forEach((k) => {
             this._classes.delete(k);
-            this.parent.classes.delete(k);
+            this.directory.classes.delete(k);
         });
 
         const rv: string[] = [];
@@ -237,7 +225,7 @@ export class File {
 
         rv.forEach((k) => {
             this._variables.delete(k);
-            this.parent.variables.delete(k);
+            this.directory.variables.delete(k);
         });
 
         const ri: string[] = [];
@@ -249,7 +237,7 @@ export class File {
 
         ri.forEach((k) => {
             this._interfaces.delete(k);
-            this.parent.interfaces.delete(k);
+            this.directory.interfaces.delete(k);
         });
 
         const rta: string[] = [];
@@ -261,22 +249,8 @@ export class File {
 
         rta.forEach((k) => {
             this._typeAliases.delete(k);
-            this.parent.typeAliases.delete(k);
+            this.directory.typeAliases.delete(k);
         });
-    }
-
-    static getCRNPage(f: File): Map<string, CRNPage> {
-        const result = new Map<string, CRNPage>();
-
-        f.ast.forEachChild((node) => {
-            if (ts.isClassDeclaration(node)) {
-                if (f.IsCRNPage(node)) {
-                    result.set(node.name?.text ?? "", new CRNPage(node, f));
-                }
-            }
-        });
-
-        return result;
     }
 }
 

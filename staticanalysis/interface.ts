@@ -5,6 +5,7 @@ import Module from "./module";
 import Variable from "./variable";
 import TypeAlias from "./typealias";
 import Class from "./class";
+import TagType from "./TagType";
 
 export class Interface {
     private readonly _name: string;
@@ -16,6 +17,7 @@ export class Interface {
     private readonly _extends: Map<string, Interface | undefined> = new Map<string, Interface | undefined>();
     private readonly _dependencies: (Class | Interface | Variable | TypeAlias)[] = [];
     private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias)[] = [];
+    private readonly _tags: Set<TagType> = new Set<TagType>();
 
     constructor(ast: ts.InterfaceDeclaration, from: File | Namespace | Module) {
         if (from instanceof Namespace) {
@@ -41,16 +43,19 @@ export class Interface {
 
         if (from instanceof Namespace) {
             this._namespace?.interfaces.set(this._name, this);
-            const clsName = this._namespace?.name + "." + this._name;
-            this._file.interfaces.set(clsName, this);
-            this._file.parent.interfaces.set(clsName, this);
+            const nsItrName = this._namespace?.name + "." + this._name;
+            this._file.interfaces.set(nsItrName, this);
+            this._file.directory.interfaces.set(nsItrName, this);
+            const pkgNsItrName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + nsItrName : nsItrName;
+            this._file.root.interfaces.set(pkgNsItrName, this);
         } else if (from instanceof Module) {
             this._module?.interfaces.set(this._name, this);
             this._module?.package?.interfaces.set(this._name, this);
         }
         this._file.interfaces.set(this._name, this);
-        this._file.parent.interfaces.set(this._name, this);
-
+        this._file.directory.interfaces.set(this._name, this);
+        const pkgItrName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + this._name : this._name;
+        this._file.root.interfaces.set(pkgItrName, this);
     }
 
     public get name(): string {
@@ -89,13 +94,17 @@ export class Interface {
         return this._beDependedOn;
     }
 
+    public get tags(): Set<TagType> {
+        return this._tags;
+    }
+
     public get dependencyIsValid(): boolean {
         if (this._extends.size === 0) {
             return true;
         }
 
         for (let v of this._extends.values()) {
-            if (v) {
+            if (!v) {
                 return false;
             }
         }

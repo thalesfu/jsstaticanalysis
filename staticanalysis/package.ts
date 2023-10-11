@@ -38,7 +38,6 @@ export class Package {
 
         this._location = location;
         this._pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-        this.BuildFiles();
     }
 
     public get name(): string {
@@ -113,42 +112,17 @@ export class Package {
         return this._typeAliases;
     }
 
-    public BuildFiles() {
-        fs.readdirSync(this.location)
-            .filter(file => {
-                if (fs.statSync(path.join(this.location, file)).isDirectory()) {
-                    return false;
-                }
-                return Package.SUPPORTTEDEXTENSIONS.includes(path.extname(file));
-            })
-            .forEach((file) => {
-                const f = new File(path.join(this.location, file), this);
-                this._files.set(f.path, f);
-            });
+    public get directories(): Map<string, PackageDirectory> {
+        return this._directories;
+    }
 
+    public BuildFiles() {
         this._directories.forEach((dir) => {
             dir.BuildFiles()
         });
     }
 
     public BuildDependencies() {
-        // if (this._pkg.dependencies) {
-        //     Object.keys(this._pkg.dependencies).forEach(dep => {
-        //         if (this._repo.packages.has(dep)) {
-        //             const dependentPackage = this._repo.packages.get(dep)!;
-        //             if (dep.startsWith("@types/")) {
-        //                 this._typeDependencies.set(dep, dependentPackage);
-        //
-        //                 if (this.name.startsWith("@types/")) {
-        //                     dependentPackage.beTypeDependents.set(this.name, this);
-        //                 }
-        //             }
-        //
-        //             this._dependencies.set(dep, dependentPackage);
-        //             dependentPackage.beDependents.set(this.name, this);
-        //         }
-        //     });
-        // }
         Package.processDependencies(this, this._pkg.dependencies);
         Package.processDependencies(this, this._pkg.peerDependencies);
         Package.processDependencies(this, this._pkg.devDependencies);
@@ -176,11 +150,7 @@ export class Package {
     }
 
     public BuildDirectories() {
-        const directories = Package.getDirectories(this.location, this);
-
-        directories.forEach((dir, path) => {
-            this._directories.set(path, dir);
-        });
+        Package.doBuildDirectories(this.location, this);
     }
 
     public BuildFileImports() {
@@ -195,23 +165,16 @@ export class Package {
         });
     }
 
-    static getDirectories(p: string, pkg: Package): Map<string, PackageDirectory> {
-        const result = new Map<string, PackageDirectory>();
-
-        fs.readdirSync(p).forEach(i => {
-            const sp = path.join(p, i);
-            if (fs.statSync(sp).isDirectory()) {
-                if (Package.hasSupportedFile(sp)) {
-                    result.set(sp, new PackageDirectory(sp, pkg));
-                }
-
-                Package.getDirectories(sp, pkg).forEach((v, k) => {
-                    result.set(k, v);
-                });
+    static doBuildDirectories(p: string, pkg: Package) {
+        if (fs.statSync(p).isDirectory()) {
+            if (Package.hasSupportedFile(p)) {
+                new PackageDirectory(p, pkg)
             }
-        });
 
-        return result;
+            fs.readdirSync(p).forEach(i => {
+                Package.doBuildDirectories(path.join(p, i), pkg)
+            });
+        }
     }
 
     private static hasSupportedFile(p: string): boolean {
@@ -238,6 +201,10 @@ export class Package {
         }
 
         if (pkg.name.startsWith("@ctrip/crn")) {
+            return true;
+        }
+
+        if (pkg.name.startsWith("@ctrip/tripkit")) {
             return true;
         }
 

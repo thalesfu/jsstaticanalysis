@@ -8,6 +8,7 @@ import Module from "./module";
 import Variable from "./variable";
 import variable from "./variable";
 import TypeAlias from "./typealias";
+import TagType from "./TagType";
 
 export class Class {
     private readonly _name: string;
@@ -20,6 +21,7 @@ export class Class {
     private readonly _module: Module | undefined;
     private readonly _dependencies: (Class | Interface | Variable | TypeAlias)[] = [];
     private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias)[] = [];
+    private readonly _tags: Set<TagType> = new Set<TagType>();
 
     constructor(ast: ts.ClassDeclaration, from: File | Namespace | Module) {
         if (from instanceof Namespace) {
@@ -47,15 +49,19 @@ export class Class {
 
         if (from instanceof Namespace) {
             this._namespace?.classes.set(this._name, this);
-            const clsName = this._namespace?.name + "." + this._name;
-            this._file.classes.set(clsName, this);
-            this._file.parent.classes.set(clsName, this);
+            const nsClsName = this._namespace?.name + "." + this._name;
+            this._file.classes.set(nsClsName, this);
+            this._file.directory.classes.set(nsClsName, this);
+            const pkgNsClsName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + nsClsName : nsClsName;
+            this._file.root.classes.set(pkgNsClsName, this);
         } else if (from instanceof Module) {
             this._module?.classes.set(this._name, this);
             this._module?.package?.classes.set(this._name, this);
         }
         this._file.classes.set(this._name, this);
-        this._file.parent.classes.set(this._name, this);
+        this._file.directory.classes.set(this._name, this);
+        const pkgClsName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + this._name : this._name;
+        this._file.root.classes.set(pkgClsName, this);
     }
 
     public get name(): string {
@@ -91,7 +97,23 @@ export class Class {
     }
 
     public get dependencyIsValid(): boolean {
-        return this._extends.size === 0 && this._implements.size === 0;
+        if (this._extends.size === 0 && this._implements.size === 0) {
+            return true;
+        }
+
+        for (let v of this._extends.values()) {
+            if (!v) {
+                return false;
+            }
+        }
+
+        for (let v of this._implements.values()) {
+            if (!v) {
+                return false;
+            }
+        }
+
+        return true
     }
 
     public get dependencies(): (Class | Interface | Variable | TypeAlias)[] {
@@ -100,6 +122,10 @@ export class Class {
 
     public get beDependedOn(): (Class | Interface | Variable | TypeAlias)[] {
         return this._beDependedOn;
+    }
+
+    public get tags(): Set<TagType> {
+        return this._tags;
     }
 
     public BuildDependencies() {

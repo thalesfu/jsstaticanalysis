@@ -21,7 +21,7 @@ export class Namespace {
         this._name = ast.name.getText();
 
         this._file.namespaces.set(this._name, this);
-        this._file.parent.namespace.set(this._name, this);
+        this._file.directory.namespace.set(this._name, this);
 
         visitAllChildren(this._ast, (node) => {
             if (ts.isClassDeclaration(node)) {

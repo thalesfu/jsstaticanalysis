@@ -4,13 +4,30 @@ import Package from "./package";
 import Directory from "./directory";
 import File from "./file"
 import CRNPage from "./crnpage";
+import Class from "./class";
+import Interface from "./interface";
+import Variable from "./variable";
+import TypeAlias from "./typealias";
+import TagType from "./TagType";
+import PackageDirectory from "./packagedirectory";
+import Module from "./module";
+import Namespace from "./namespace";
+import {rootCertificates} from "tls";
 
 export class Repository {
-    private readonly _location: string;
+    private readonly _rootlocation: string;
+    private readonly _location: string
 
+    private readonly _tsconfig: any
     private readonly _packages: Map<string, Package> = new Map<string, Package>();
     private readonly _directories: Map<string, Directory> = new Map<string, Directory>();
     private readonly _files: Map<string, File> = new Map<string, File>();
+    private readonly _classes: Map<string, Class> = new Map<string, Class>();
+    private readonly _variables: Map<string, Variable> = new Map<string, Variable>();
+    private readonly _namespace: Map<string, Namespace> = new Map<string, Namespace>();
+    private readonly _modules: Map<string, Module> = new Map<string, Module>();
+    private readonly _interfaces: Map<string, Interface> = new Map<string, Interface>();
+    private readonly _typeAliases: Map<string, TypeAlias> = new Map<string, TypeAlias>();
     private readonly _crnPages: Map<string, CRNPage> = new Map<string, CRNPage>();
 
 
@@ -19,7 +36,9 @@ export class Repository {
             throw new Error(`Path ${location} does not exist.`);
         }
 
-        this._location = location;
+        this._rootlocation = location;
+
+        this._tsconfig = JSON.parse(fs.readFileSync(path.join(location, "tsconfig.json"), 'utf-8'));
 
         const stats = fs.statSync(location);
         if (!stats.isDirectory()) {
@@ -36,20 +55,24 @@ export class Repository {
             this.buildPackageItemsDependencies();
         }
 
-        const srcDir = path.join(location, "src");
-        if (fs.existsSync(srcDir)) {
-            this._directories = Repository.getDirectories(srcDir, this);
+        this._location = this._tsconfig.compilerOptions?.paths?.["~/*"];
+        if (!this._location) {
+            this._location = location
+        } else {
+            this._location = path.join(location, this._location[0].replace("/*", ""))
         }
-
+        Repository.buildDirectories(this._location, this);
         this.directories.forEach(dir => {
-            dir.files.forEach(file => {
-                this._files.set(file.path, file);
-            });
-
-            dir.crnPages.forEach(page => {
-                this._crnPages.set(page.name, page);
-            });
+            dir.BuildFiles();
         });
+        this.directories.forEach(dir => {
+            dir.BuildFileImports();
+        });
+        this.directories.forEach(dir => {
+            dir.BuildItemsDependencies();
+        });
+
+        this.buildPackageTags();
     }
 
     public get location(): string {
@@ -66,6 +89,30 @@ export class Repository {
 
     public get files(): Map<string, File> {
         return this._files;
+    }
+
+    public get classes(): Map<string, Class> {
+        return this._classes;
+    }
+
+    public get variables(): Map<string, Variable> {
+        return this._variables;
+    }
+
+    public get namespace(): Map<string, Namespace> {
+        return this._namespace;
+    }
+
+    public get modules(): Map<string, Module> {
+        return this._modules;
+    }
+
+    public get interfaces(): Map<string, Interface> {
+        return this._interfaces;
+    }
+
+    public get typeAliases(): Map<string, TypeAlias> {
+        return this._typeAliases;
     }
 
     public get crnPages(): Map<string, CRNPage> {
@@ -98,21 +145,16 @@ export class Repository {
     }
 
 
-    static getDirectories(p: string, r: Repository): Map<string, Directory> {
-        const result = new Map<string, Directory>();
-
-        fs.readdirSync(p).forEach(i => {
-            const sp = path.join(p, i);
-            if (fs.statSync(sp).isDirectory()) {
-                result.set(sp, new Directory(sp, r));
-
-                Repository.getDirectories(sp, r).forEach((v, k) => {
-                    result.set(k, v);
-                });
+    static buildDirectories(p: string, r: Repository) {
+        if (fs.statSync(p).isDirectory()) {
+            if (Repository.hasSupportedFile(p)) {
+                new Directory(p, r);
             }
-        });
 
-        return result;
+            fs.readdirSync(p).forEach(i => {
+                Repository.buildDirectories(path.join(p, i), r)
+            });
+        }
     }
 
     private buildPackageItemsDependencies() {
@@ -231,6 +273,84 @@ export class Repository {
         }
 
         return result;
+    }
+
+    private buildPackageTags() {
+        const component = this.packages.get("@types/react")?.classes.get("Component");
+        Repository.buildTag(component!, TagType.Component);
+        const pureComponent = this.packages.get("@types/react")?.classes.get("PureComponent");
+        Repository.buildTag(pureComponent!, TagType.Component);
+        const page = this.packages.get("@ctrip/crn")?.classes.get("Page");
+        Repository.buildTag(page!, TagType.Page);
+    }
+
+    private static hasSupportedFile(p: string): boolean {
+        if (Repository.isInBlackList(p)) {
+            return false;
+        }
+
+        return fs.readdirSync(p).filter((file) => Directory.SUPPORTTEDEXTENSIONS.includes(path.extname(file))).length > 0;
+    }
+
+    private static isInBlackList(pkgPath: string): boolean {
+        if (Repository.isInWhiteList(pkgPath)) {
+            return false
+        }
+
+        const parts = new Set(pkgPath.split(path.sep));
+
+        if (parts.has(".__tmp")) {
+            return true;
+        }
+
+        if (parts.has(".git")) {
+            return true;
+        }
+
+        if (parts.has(".husky")) {
+            return true;
+        }
+
+        if (parts.has(".idea")) {
+            return true;
+        }
+
+        if (parts.has("__mocks__")) {
+            return true;
+        }
+
+        if (parts.has("__test__")) {
+            return true;
+        }
+
+        if (parts.has("dist")) {
+            return true;
+        }
+
+        if (parts.has("docs")) {
+            return true;
+        }
+
+        if (parts.has("fonts")) {
+            return true;
+        }
+
+        if (parts.has("node_modules")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static isInWhiteList(pkgPath: string): boolean {
+        return false
+    }
+
+    static buildTag(item: Class | Interface | Variable | TypeAlias, tag: TagType) {
+        item.tags.add(tag);
+        item.beDependedOn.forEach((dep) => {
+            Repository.buildTag(dep, tag);
+        });
     }
 }
 

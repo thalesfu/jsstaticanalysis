@@ -36,6 +36,7 @@ export class PackageDirectory {
         this._package = pkg;
         this._path = path.relative(pkg.location, location)
         this._canImport = fs.readdirSync(location).filter((file) => PackageDirectory.IMPORTABLE.includes(file)).length > 0;
+        this._package.directories.set(this.path, this);
     }
 
     public get path(): string {
@@ -101,7 +102,7 @@ export class PackageDirectory {
             })
             .reduce((grouped: Map<string, Map<string, string>>, file) => {
                 const ext = path.extname(file);
-                const bf = file.replace(ext, "")
+                const bf = file.split('.')[0]
 
                 if (!grouped.has(bf)) {
                     grouped.set(bf, new Map<string, string>());
@@ -109,15 +110,15 @@ export class PackageDirectory {
 
                 grouped.get(bf)?.set(ext, file);
 
-
                 return grouped;
             }, new Map<string, Map<string, string>>);
 
         fg.forEach((g) => {
-            const fileName = g.get(".ts") || g.get(".tsx") || g.get(".js") || g.get(".jsx");
-            if (fileName) {
-                const f = new File(path.join(this.location, fileName), this);
-                this._package.files.set(f.path, f);
+            for (let ext of PackageDirectory.SUPPORTTEDEXTENSIONS) {
+                if (g.has(ext)) {
+                    new File(path.join(this.location, g.get(ext)!), this);
+                    return;
+                }
             }
         });
     }

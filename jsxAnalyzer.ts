@@ -6,6 +6,8 @@ import Class from "./staticanalysis/class";
 import Interface from "./staticanalysis/interface";
 import Variable from "./staticanalysis/variable";
 import TypeAlias from "./staticanalysis/typealias";
+import TagType from "./staticanalysis/TagType";
+import {JSX} from "./staticanalysis/JSX";
 
 function extractComponents(sourceCode: string): string[] {
     const sourceFile = ts.createSourceFile('temp.tsx', sourceCode, ts.ScriptTarget.ES2015, true, ts.ScriptKind.TSX);
@@ -124,12 +126,18 @@ function getDependentPackages(pkg: Package, map: Map<string, Package>) {
 // }
 
 function printBeDependentOns(cls: Class | Interface | Variable | TypeAlias, indentLevel: number) {
-    console.log(`${" ".repeat(indentLevel * 4)}${cls.name} from ${cls.file?.parent?.path} at ${cls.file?.location}` );
+    console.log(`${" ".repeat(indentLevel * 4)}${cls.name} from ${cls.tags.has(TagType.Component)} at ${cls.file?.location}`);
     cls.beDependedOn.forEach((dep) => {
         printBeDependentOns(dep, indentLevel + 1);
     });
 }
 
-const component = repo.packages.get("@types/react")?.classes.get("Component");
+// const component = repo.packages.get("@types/react")?.classes.get("Component");
+// const page = repo.packages.get("@ctrip/crn")?.classes.get("Page");
+//
+// printBeDependentOns(component!, 0);
+// // printBeDependentOns(page!, 0);
 
-printBeDependentOns(component!, 0);
+const bookingScreen = repo.directories.get("containers/bookingScreen/main")?.classes.get("BookingScreen");
+const bs = new JSX(bookingScreen!);
+

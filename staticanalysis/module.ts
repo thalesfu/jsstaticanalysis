@@ -25,8 +25,8 @@ export class Module {
         this._name = ast.name.getText().replace(/'/g, "");
 
         this._file.modules.set(this._name, this);
-        this._file.parent.modules.set(this._name, this);
-        const pkg = this._file.parent.repo.packages.get(this._name);
+        this._file.directory.modules.set(this._name, this);
+        const pkg = this._file.directory.repo.packages.get(this._name);
 
         if (!pkg) {
             return;

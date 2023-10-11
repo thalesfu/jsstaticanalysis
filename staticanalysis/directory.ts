@@ -33,7 +33,7 @@ export class Directory {
         this._repo = repository;
         this._path = path.relative(repository.location, location)
         this._canImport = fs.readdirSync(location).filter((file) => Directory.IMPORTABLE.includes(file)).length > 0;
-        this.buildFiles();
+        this._repo.directories.set(this.path, this);
     }
 
     public get path(): string {
@@ -85,23 +85,48 @@ export class Directory {
         return this._typeAliases;
     }
 
-    public buildFiles() {
-        fs.readdirSync(this.location)
+    public BuildFiles() {
+        const fg = fs.readdirSync(this.location)
             .filter(file => {
                 if (fs.statSync(path.join(this.location, file)).isDirectory()) {
                     return false;
                 }
                 return Directory.SUPPORTTEDEXTENSIONS.includes(path.extname(file));
             })
-            .forEach((file) => {
-                const f = new File(path.join(this.location, file), this);
-                this._files.set(f.path, f);
-            });
+            .reduce((grouped: Map<string, Map<string, string>>, file) => {
+                const ext = path.extname(file);
+                const bf = file.split('.')[0]
 
-        this.files.forEach(file => {
-            file.crnPage.forEach(page => {
-                this._crnPages.set(page.name, page);
-            });
+                if (!grouped.has(bf)) {
+                    grouped.set(bf, new Map<string, string>());
+                }
+
+                grouped.get(bf)?.set(ext, file);
+
+                return grouped;
+            }, new Map<string, Map<string, string>>);
+
+        fg.forEach((g) => {
+            for (let ext of Directory.SUPPORTTEDEXTENSIONS) {
+                if (g.has(ext)) {
+                    new File(path.join(this.location, g.get(ext)!), this);
+                    return;
+                }
+            }
+        });
+    }
+
+    public BuildFileImports() {
+        this._files.forEach((file) => {
+            file.BuildImports();
+        });
+    }
+
+
+
+    public BuildItemsDependencies() {
+        this._files.forEach((file) => {
+            file.BuildDependencies();
         });
     }
 }

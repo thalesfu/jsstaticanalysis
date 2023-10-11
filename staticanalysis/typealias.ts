@@ -5,6 +5,7 @@ import Namespace from "./namespace";
 import Module from "./module";
 import Variable from "./variable";
 import Class from "./class";
+import TagType from "./TagType";
 
 export class TypeAlias {
     private readonly _name: string;
@@ -16,6 +17,7 @@ export class TypeAlias {
     private readonly _base: Map<string, Interface | undefined> = new Map<string, Interface | undefined>();
     private readonly _dependencies: (Class | Interface | Variable | TypeAlias)[] = [];
     private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias)[] = [];
+    private readonly _tags: Set<TagType> = new Set<TagType>();
 
     constructor(ast: ts.TypeAliasDeclaration, from: File | Namespace | Module) {
         if (from instanceof Namespace) {
@@ -38,16 +40,19 @@ export class TypeAlias {
 
         if (from instanceof Namespace) {
             this._namespace?.typeAliases.set(this._name, this);
-            const clsName = this._namespace?.name + "." + this._name;
-            this._file.typeAliases.set(clsName, this);
-            this._file.parent.typeAliases.set(clsName, this);
+            const nsTAName = this._namespace?.name + "." + this._name;
+            this._file.typeAliases.set(nsTAName, this);
+            this._file.directory.typeAliases.set(nsTAName, this);
+            const pkgNsTAName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + nsTAName : nsTAName;
+            this._file.root.typeAliases.set(pkgNsTAName, this);
         } else if (from instanceof Module) {
             this._module?.typeAliases.set(this._name, this);
             this._module?.package?.typeAliases.set(this._name, this);
         }
         this._file.typeAliases.set(this._name, this);
-        this._file.parent.typeAliases.set(this._name, this);
-
+        this._file.directory.typeAliases.set(this._name, this);
+        const pkgTAName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + this._name : this._name;
+        this._file.root.typeAliases.set(pkgTAName, this);
     }
 
     public get name(): string {
@@ -86,13 +91,17 @@ export class TypeAlias {
         return this._beDependedOn;
     }
 
+    public get tags(): Set<TagType> {
+        return this._tags;
+    }
+
     public get dependencyIsValid(): boolean {
         if (this._base.size === 0) {
             return true;
         }
 
         for (let v of this._base.values()) {
-            if (v) {
+            if (!v) {
                 return false;
             }
         }
