@@ -2,6 +2,10 @@ import ts from 'typescript';
 import * as fs from 'fs';
 import Repository from "./staticanalysis/repository";
 import Package from "./staticanalysis/package";
+import Class from "./staticanalysis/class";
+import Interface from "./staticanalysis/interface";
+import Variable from "./staticanalysis/variable";
+import TypeAlias from "./staticanalysis/typealias";
 
 function extractComponents(sourceCode: string): string[] {
     const sourceFile = ts.createSourceFile('temp.tsx', sourceCode, ts.ScriptTarget.ES2015, true, ts.ScriptKind.TSX);
@@ -73,7 +77,13 @@ console.log(`Repo path: ${repo.location}`);
 //     });
 // });
 
-printBeTypeDependents(repo.dependencies.get("@types/react")!,0);
+// const map = new Map<string, Package>();
+// getDependentPackages(repo.packages.get("@types/react")!, map);
+// map.forEach((pkg) => {
+//     console.log(`Package ${pkg.name}@${pkg.version}`);
+// });
+
+// printBeDependents(repo.packages.get("react")!, 0);
 
 function printBeTypeDependents(pkg: Package, indentLevel: number) {
     console.log(`${" ".repeat(indentLevel * 4)}${pkg.name}@${pkg.version}`);
@@ -81,3 +91,45 @@ function printBeTypeDependents(pkg: Package, indentLevel: number) {
         printBeTypeDependents(dep, indentLevel + 1);
     });
 }
+
+function printBeDependents(pkg: Package, indentLevel: number) {
+    console.log(`${" ".repeat(indentLevel * 4)}${pkg.name}@${pkg.version}`);
+    pkg.beDependents.forEach((dep) => {
+        printBeDependents(dep, indentLevel + 1);
+    });
+}
+
+function getDependentPackages(pkg: Package, map: Map<string, Package>) {
+    map.set(pkg.name, pkg);
+    pkg.beDependents?.forEach((dep) => {
+        if (!map.has(dep.name)) {
+            getDependentPackages(dep, map);
+        }
+    });
+}
+
+// function printDeclares(pkg: Package) {
+//     console.log(`${pkg.name}@${pkg.version}`);
+//     pkg.files.forEach((f) => {
+//         f.classes.forEach((c, cn) => {
+//             console.log(`\tClass: ${c.name} ${c.isExport ? "is export" : "is not export"} at ${c?.file.location}`);
+//             c.extends.forEach((e, en) => {
+//                 console.log(`\t\tExtend: ${en}`);
+//             });
+//             c.implements.forEach((i, iname) => {
+//                 console.log(`\t\tImplement: ${iname}`);
+//             });
+//         });
+//     });
+// }
+
+function printBeDependentOns(cls: Class | Interface | Variable | TypeAlias, indentLevel: number) {
+    console.log(`${" ".repeat(indentLevel * 4)}${cls.name} from ${cls.file?.parent?.path} at ${cls.file?.location}` );
+    cls.beDependedOn.forEach((dep) => {
+        printBeDependentOns(dep, indentLevel + 1);
+    });
+}
+
+const component = repo.packages.get("@types/react")?.classes.get("Component");
+
+printBeDependentOns(component!, 0);

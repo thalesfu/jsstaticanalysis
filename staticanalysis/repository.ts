@@ -8,7 +8,7 @@ import CRNPage from "./crnpage";
 export class Repository {
     private readonly _location: string;
 
-    private readonly _dependencies: Map<string, Package> = new Map<string, Package>();
+    private readonly _packages: Map<string, Package> = new Map<string, Package>();
     private readonly _directories: Map<string, Directory> = new Map<string, Directory>();
     private readonly _files: Map<string, File> = new Map<string, File>();
     private readonly _crnPages: Map<string, CRNPage> = new Map<string, CRNPage>();
@@ -28,8 +28,12 @@ export class Repository {
 
         const moduleDir = path.join(location, "node_modules");
         if (fs.existsSync(moduleDir)) {
-            this._dependencies = Repository.getPackages(moduleDir, this);
+            this._packages = Repository.getPackages(moduleDir, this);
             this.buildPackagesDependencies();
+            this.buildPackageDirectories();
+            this.buildPackageFiles();
+            this.buildPackageFilesImports();
+            this.buildPackageItemsDependencies();
         }
 
         const srcDir = path.join(location, "src");
@@ -52,8 +56,8 @@ export class Repository {
         return this._location;
     }
 
-    public get dependencies(): Map<string, Package> {
-        return this._dependencies;
+    public get packages(): Map<string, Package> {
+        return this._packages;
     }
 
     public get directories(): Map<string, Directory> {
@@ -77,8 +81,10 @@ export class Repository {
 
                 if (fs.statSync(sp).isDirectory()) {
                     if (fs.existsSync(packageJsonPath)) {
-                        const pkg = new Package(sp, r);
-                        result.set(pkg.name, pkg);
+                        if (!Package.isInBlackList(packageJsonPath)) {
+                            const pkg = new Package(sp, r);
+                            result.set(pkg.name, pkg);
+                        }
                     } else {
                         Repository.getPackages(sp, r).forEach((v, k) => {
                             result.set(k, v);
@@ -91,22 +97,64 @@ export class Repository {
         return result;
     }
 
-    buildPackagesDependencies() {
-        this.dependencies.forEach((pkg) => {
-            pkg.buildDependencies();
+
+    static getDirectories(p: string, r: Repository): Map<string, Directory> {
+        const result = new Map<string, Directory>();
+
+        fs.readdirSync(p).forEach(i => {
+            const sp = path.join(p, i);
+            if (fs.statSync(sp).isDirectory()) {
+                result.set(sp, new Directory(sp, r));
+
+                Repository.getDirectories(sp, r).forEach((v, k) => {
+                    result.set(k, v);
+                });
+            }
+        });
+
+        return result;
+    }
+
+    private buildPackageItemsDependencies() {
+        this.packages.forEach((pkg) => {
+            pkg.BuildItemsDependencies();
         });
     }
 
-    GetTopologicalSortDependentPackages(): Package[] {
+    private buildPackageDirectories() {
+        this.packages.forEach((pkg) => {
+            pkg.BuildDirectories();
+        });
+    }
+
+    private buildPackageFiles() {
+        this.packages.forEach((pkg) => {
+            pkg.BuildFiles();
+        });
+    }
+
+    private buildPackageFilesImports() {
+        this.packages.forEach((pkg) => {
+            pkg.BuildFileImports();
+        });
+    }
+
+    private buildPackagesDependencies() {
+        this.packages.forEach((pkg) => {
+            pkg.BuildDependencies();
+        });
+    }
+
+    public GetTopologicalSortDependentPackages(): Package[] {
         let result: Package[] = [];
         let inDegree: Map<Package, number> = new Map<Package, number>();
 
-        for (const pkg of this.dependencies.values()) {
+        for (const pkg of this.packages.values()) {
             inDegree.set(pkg, pkg.dependencies.size);
         }
 
         let next: Package[] = [];
-        for (const pkg of this.dependencies.values()) {
+        for (const pkg of this.packages.values()) {
             if (inDegree.get(pkg) === 0) {
                 next.push(pkg);
                 inDegree.delete(pkg);
@@ -130,16 +178,16 @@ export class Repository {
             }
         }
 
-        if (result.length !== this.dependencies.size) {
+        if (result.length !== this.packages.size) {
             return [];
         }
 
         return result;
     }
 
-    GetTopologicalSortTypePackages(): Package[] {
+    public GetTopologicalSortTypePackages(): Package[] {
         const typePackages: Package[] = [];
-        this.dependencies.forEach((pkg) => {
+        this.packages.forEach((pkg) => {
             if (pkg.IsType) {
                 typePackages.push(pkg);
             }
@@ -181,24 +229,6 @@ export class Repository {
         if (result.length !== typePackages.length) {
             return [];
         }
-
-        return result;
-    }
-
-
-    static getDirectories(p: string, r: Repository): Map<string, Directory> {
-        const result = new Map<string, Directory>();
-
-        fs.readdirSync(p).forEach(i => {
-            const sp = path.join(p, i);
-            if (fs.statSync(sp).isDirectory()) {
-                result.set(sp, new Directory(sp, r));
-
-                Repository.getDirectories(sp, r).forEach((v, k) => {
-                    result.set(k, v);
-                });
-            }
-        });
 
         return result;
     }
