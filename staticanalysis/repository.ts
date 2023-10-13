@@ -13,6 +13,7 @@ import PackageDirectory from "./packagedirectory";
 import Module from "./module";
 import Namespace from "./namespace";
 import {rootCertificates} from "tls";
+import {ObjectBind} from "./objectbind";
 
 export class Repository {
     private readonly _rootlocation: string;
@@ -28,6 +29,7 @@ export class Repository {
     private readonly _modules: Map<string, Module> = new Map<string, Module>();
     private readonly _interfaces: Map<string, Interface> = new Map<string, Interface>();
     private readonly _typeAliases: Map<string, TypeAlias> = new Map<string, TypeAlias>();
+    private readonly _objectBinds: Map<string, ObjectBind> = new Map<string, ObjectBind>();
     private readonly _crnPages: Map<string, CRNPage> = new Map<string, CRNPage>();
 
 
@@ -113,6 +115,10 @@ export class Repository {
 
     public get typeAliases(): Map<string, TypeAlias> {
         return this._typeAliases;
+    }
+
+    public get objectBinds(): Map<string, ObjectBind> {
+        return this._objectBinds;
     }
 
     public get crnPages(): Map<string, CRNPage> {
@@ -346,7 +352,7 @@ export class Repository {
         return false
     }
 
-    static buildTag(item: Class | Interface | Variable | TypeAlias, tag: TagType) {
+    static buildTag(item: Class | Interface | Variable | TypeAlias | ObjectBind, tag: TagType) {
         item.tags.add(tag);
         item.beDependedOn.forEach((dep) => {
             Repository.buildTag(dep, tag);

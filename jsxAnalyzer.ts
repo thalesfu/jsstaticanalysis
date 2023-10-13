@@ -8,6 +8,7 @@ import Variable from "./staticanalysis/variable";
 import TypeAlias from "./staticanalysis/typealias";
 import TagType from "./staticanalysis/TagType";
 import {JSX} from "./staticanalysis/JSX";
+import ObjectBind from "./staticanalysis/objectbind";
 
 function extractComponents(sourceCode: string): string[] {
     const sourceFile = ts.createSourceFile('temp.tsx', sourceCode, ts.ScriptTarget.ES2015, true, ts.ScriptKind.TSX);
@@ -125,7 +126,7 @@ function getDependentPackages(pkg: Package, map: Map<string, Package>) {
 //     });
 // }
 
-function printBeDependentOns(cls: Class | Interface | Variable | TypeAlias, indentLevel: number) {
+function printBeDependentOns(cls: Class | Interface | Variable | TypeAlias | ObjectBind, indentLevel: number) {
     console.log(`${" ".repeat(indentLevel * 4)}${cls.name} from ${cls.tags.has(TagType.Component)} at ${cls.file?.location}`);
     cls.beDependedOn.forEach((dep) => {
         printBeDependentOns(dep, indentLevel + 1);
@@ -140,4 +141,5 @@ function printBeDependentOns(cls: Class | Interface | Variable | TypeAlias, inde
 
 const bookingScreen = repo.directories.get("containers/bookingScreen/main")?.classes.get("BookingScreen");
 const bs = new JSX(bookingScreen!);
+JSX.PrintJSX(bs, 0);
 

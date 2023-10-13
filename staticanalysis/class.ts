@@ -9,18 +9,20 @@ import Variable from "./variable";
 import variable from "./variable";
 import TypeAlias from "./typealias";
 import TagType from "./TagType";
+import ObjectBind from "./objectbind";
 
 export class Class {
     private readonly _name: string;
     private readonly _ast: ts.ClassDeclaration;
     private readonly _isExport: boolean = false;
-    private readonly _extends: Map<string, Class | Variable | undefined> = new Map<string, Class | variable | undefined>();
+    private readonly _isDefaultExport: boolean = false;
+    private readonly _extends: Map<string, Class | Variable | ObjectBind | undefined> = new Map<string, Class | variable | ObjectBind | undefined>();
     private readonly _implements: Map<string, Interface | undefined> = new Map<string, Interface | undefined>();
     private readonly _file: File;
     private readonly _namespace: Namespace | undefined;
     private readonly _module: Module | undefined;
-    private readonly _dependencies: (Class | Interface | Variable | TypeAlias)[] = [];
-    private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias)[] = [];
+    private readonly _dependencies: (Class | Interface | Variable | TypeAlias | ObjectBind)[] = [];
+    private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias | ObjectBind)[] = [];
     private readonly _tags: Set<TagType> = new Set<TagType>();
 
     constructor(ast: ts.ClassDeclaration, from: File | Namespace | Module) {
@@ -36,6 +38,7 @@ export class Class {
         this._ast = ast;
         this._name = ast.name?.text ?? "";
         this._isExport = ast.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+        this._isDefaultExport = ast.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.DefaultKeyword) ?? false;
 
         ast.heritageClauses?.forEach(heritageClause => {
             heritageClause.types.forEach(type => {
@@ -60,6 +63,10 @@ export class Class {
         }
         this._file.classes.set(this._name, this);
         this._file.directory.classes.set(this._name, this);
+        if (this._isDefaultExport) {
+            this._file.classes.set("default", this);
+            this._file.directory.classes.set("default", this);
+        }
         const pkgClsName = this._file.directory.path.length > 0 ? this._file.directory.path + "." + this._name : this._name;
         this._file.root.classes.set(pkgClsName, this);
     }
@@ -76,7 +83,7 @@ export class Class {
         return this._file;
     }
 
-    public get extends(): Map<string, Class | Variable | undefined> {
+    public get extends(): Map<string, Class | Variable | ObjectBind | undefined> {
         return this._extends;
     }
 
@@ -116,11 +123,11 @@ export class Class {
         return true
     }
 
-    public get dependencies(): (Class | Interface | Variable | TypeAlias)[] {
+    public get dependencies(): (Class | Interface | Variable | TypeAlias | ObjectBind)[] {
         return this._dependencies;
     }
 
-    public get beDependedOn(): (Class | Interface | Variable | TypeAlias)[] {
+    public get beDependedOn(): (Class | Interface | Variable | TypeAlias | ObjectBind)[] {
         return this._beDependedOn;
     }
 
@@ -152,7 +159,7 @@ export class Class {
         });
     }
 
-    private getExtend(key: string): Class | Variable | undefined {
+    private getExtend(key: string): Class | Variable | ObjectBind | undefined {
         const c = this._file?.classes.get(key);
         if (c) {
             return c;
@@ -161,6 +168,11 @@ export class Class {
         const v = this._file?.variables.get(key);
         if (v) {
             return v;
+        }
+
+        const o = this._file?.objectBinds.get(key);
+        if (o) {
+            return o;
         }
 
         return this.getImportClass(key);

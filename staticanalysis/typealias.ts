@@ -6,6 +6,7 @@ import Module from "./module";
 import Variable from "./variable";
 import Class from "./class";
 import TagType from "./TagType";
+import ObjectBind from "./objectbind";
 
 export class TypeAlias {
     private readonly _name: string;
@@ -15,8 +16,8 @@ export class TypeAlias {
     private readonly _module: Module | undefined;
     private readonly _isExport: boolean = false;
     private readonly _base: Map<string, Interface | undefined> = new Map<string, Interface | undefined>();
-    private readonly _dependencies: (Class | Interface | Variable | TypeAlias)[] = [];
-    private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias)[] = [];
+    private readonly _dependencies: (Class | Interface | Variable | TypeAlias | ObjectBind)[] = [];
+    private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias | ObjectBind)[] = [];
     private readonly _tags: Set<TagType> = new Set<TagType>();
 
     constructor(ast: ts.TypeAliasDeclaration, from: File | Namespace | Module) {
@@ -83,11 +84,11 @@ export class TypeAlias {
         return this._base;
     }
 
-    public get dependencies(): (Class | Interface | Variable | TypeAlias)[] {
+    public get dependencies(): (Class | Interface | Variable | TypeAlias | ObjectBind)[] {
         return this._dependencies;
     }
 
-    public get beDependedOn(): (Class | Interface | Variable | TypeAlias)[] {
+    public get beDependedOn(): (Class | Interface | Variable | TypeAlias | ObjectBind)[] {
         return this._beDependedOn;
     }
 

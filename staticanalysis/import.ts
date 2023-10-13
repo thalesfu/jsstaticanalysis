@@ -25,12 +25,12 @@ export class Import {
 
         let fromString = this._ast.moduleSpecifier.getText().replace(/["']/g, "");
         let message = "";
-        let from = this.getFrom(fromString);
+        let from = Import.GetFrom(fromString, this.file);
         let imported: Class | Variable | Namespace | Interface | TypeAlias | undefined;
         if (!from) {
             message += `Cannot find from path ${fromString}; `;
         } else {
-            imported = this.getImported(this._name, from);
+            imported = Import.GetImported(this._name, from);
         }
 
         if (!imported) {
@@ -38,12 +38,12 @@ export class Import {
 
             if (!isRelateImport(fromString) && !isAbsoluteImport(fromString)) {
                 fromString = "@types/" + fromString;
-                from = this.getFrom(fromString);
+                from = Import.GetFrom(fromString, this.file);
 
                 if (!from) {
                     message += `Cannot find from path ${fromString}; `;
                 } else {
-                    imported = this.getImported(this._name, from);
+                    imported = Import.GetImported(this._name, from);
 
                     if (!imported) {
                         message += `Cannot find class ${this._name} in package ${fromString}; `;
@@ -74,7 +74,7 @@ export class Import {
         return this._file;
     }
 
-    public get from(): Package | File | Directory | PackageDirectory| undefined {
+    public get from(): Package | File | Directory | PackageDirectory | undefined {
         return this._from;
     }
 
@@ -82,37 +82,37 @@ export class Import {
         return this._imported;
     }
 
-    private getFrom(from: string): Package | File | Directory | PackageDirectory | undefined {
+    public static GetFrom(from: string, file: File): Package | File | Directory | PackageDirectory | undefined {
         if (isRelateImport(from)) {
             const ext = path.extname(from);
-            const s = path.join(this._file.directory.path, from.replace(ext, ""));
+            const s = path.join(file.directory.path, from.replace(ext, ""));
 
-            const f = this._file.root.files.get(s);
+            const f = file.root.files.get(s);
 
             if (f) {
                 return f;
             }
 
-            return this._file.root.directories.get(s);
+            return file.root.directories.get(s);
         }
 
         if (isAbsoluteImport(from)) {
             const ext = path.extname(from);
             const s = from.replace(ext, "").replace("~/", "");
 
-            const f = this._file.root.files.get(s);
+            const f = file.root.files.get(s);
 
             if (f) {
                 return f;
             }
 
-            return this._file.root.directories.get(s);
+            return file.root.directories.get(s);
         }
 
-        return this._file.directory.repo.packages.get(from);
+        return file.directory.repo.packages.get(from);
     }
 
-    private getImported(name: string, from: Package | File | Directory | PackageDirectory): Class | Variable | Namespace | Interface | TypeAlias | undefined {
+    public static GetImported(name: string, from: Package | File | Directory | PackageDirectory): Class | Variable | Namespace | Interface | TypeAlias | undefined {
         const cls = from.classes.get(name);
         if (cls) {
             return cls;

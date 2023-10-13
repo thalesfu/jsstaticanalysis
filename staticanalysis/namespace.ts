@@ -5,6 +5,7 @@ import Variable from "./variable";
 import Interface from "./interface";
 import TypeAlias from "./typealias";
 import {visitAllChildren} from "./utils";
+import {ObjectBind} from "./objectbind";
 
 export class Namespace {
     private readonly _name: string;
@@ -14,6 +15,7 @@ export class Namespace {
     private readonly _variables: Map<string, Variable> = new Map<string, Variable>();
     private readonly _interfaces: Map<string, Interface> = new Map<string, Interface>();
     private readonly _typeAliases: Map<string, TypeAlias> = new Map<string, TypeAlias>();
+    private readonly _objectBinds: Map<string, ObjectBind> = new Map<string, ObjectBind>();
 
     constructor(ast: ts.ModuleDeclaration,  from: File) {
         this._ast = ast;
@@ -76,6 +78,10 @@ export class Namespace {
 
     public get typeAliases(): Map<string, TypeAlias> {
         return this._typeAliases;
+    }
+
+    public get objectBinds(): Map<string, ObjectBind> {
+        return this._objectBinds;
     }
 
     public BuildDependencies() {

@@ -9,10 +9,11 @@ import {Namespace} from "./namespace";
 import Interface from "./interface";
 import TypeAlias from "./typealias";
 import Module from "./module";
+import {ObjectBind} from "./objectbind";
 
 export class Directory {
     static readonly IMPORTABLE = ["index.ts", "index.tsx", "index.js", "index.jsx"];
-    static readonly SUPPORTTEDEXTENSIONS = [".tsx"];
+    static readonly SUPPORTTEDEXTENSIONS = [".tsx", ".ts"];
 
     private readonly _path: string;
     private readonly _location: string;
@@ -26,6 +27,7 @@ export class Directory {
     private readonly _modules: Map<string, Module> = new Map<string, Module>();
     private readonly _interfaces: Map<string, Interface> = new Map<string, Interface>();
     private readonly _typeAliases: Map<string, TypeAlias> = new Map<string, TypeAlias>();
+    private readonly _objectBinds: Map<string, ObjectBind> = new Map<string, ObjectBind>();
 
 
     constructor(location: string, repository: Repository) {
@@ -85,6 +87,10 @@ export class Directory {
         return this._typeAliases;
     }
 
+    public get objectBinds(): Map<string, ObjectBind> {
+        return this._objectBinds;
+    }
+
     public BuildFiles() {
         const fg = fs.readdirSync(this.location)
             .filter(file => {
@@ -121,7 +127,6 @@ export class Directory {
             file.BuildImports();
         });
     }
-
 
 
     public BuildItemsDependencies() {

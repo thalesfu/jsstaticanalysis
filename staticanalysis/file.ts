@@ -14,6 +14,7 @@ import TypeAlias from "./typealias";
 import PackageDirectory from "./packagedirectory";
 import Module from "./module";
 import Repository from "./repository";
+import {ObjectBind} from "./objectbind";
 
 export class File {
     private readonly _name: string;
@@ -25,6 +26,7 @@ export class File {
     private readonly _directory: Directory | Package | PackageDirectory;
     private readonly _root: Package | Repository;
     private readonly _classes: Map<string, Class> = new Map<string, Class>();
+    private readonly _objectBinds: Map<string, ObjectBind> = new Map<string, ObjectBind>();
     private readonly _variables: Map<string, Variable> = new Map<string, Variable>();
     private readonly _namespaces: Map<string, Namespace> = new Map<string, Namespace>();
     private readonly _modules: Map<string, Module> = new Map<string, Module>();
@@ -44,40 +46,50 @@ export class File {
         this._ast = ts.createSourceFile(location, fs.readFileSync(location, 'utf-8'), ts.ScriptTarget.ES2015, true, scriptKindElement);
 
         visitAllChildren(this._ast, (node) => {
-            if (ts.isClassDeclaration(node)) {
-                new Class(node, this);
-                return true;
-            }
-
-            if (ts.isVariableDeclaration(node)) {
-                if (ts.isIdentifier(node.name) && ts.isVariableStatement(node.parent.parent)) {
-                    new Variable(node, this)
+                if (ts.isClassDeclaration(node)) {
+                    new Class(node, this);
                     return true;
                 }
-            }
 
-            if (ts.isModuleDeclaration(node)) {
-                if (ts.isIdentifier(node.name)) {
-                    new Namespace(node, this);
-                } else {
-                    new Module(node, this);
+                if (ts.isVariableDeclaration(node)) {
+                    if (ts.isSourceFile(node.parent.parent.parent) || ts.isModuleDeclaration(node.parent.parent.parent)) {
+                        if (ts.isIdentifier(node.name) && ts.isVariableStatement(node.parent.parent)) {
+                            new Variable(node, this)
+                            return true;
+                        } else if (ts.isObjectBindingPattern(node.name)) {
+                            node.name.elements.forEach((element) => {
+                                if (ts.isBindingElement(element) && ts.isIdentifier(element.name)) {
+                                    new ObjectBind(element.name.getText(), node.name as ts.ObjectBindingPattern, this);
+                                }
+                            });
+                            return true;
+                        }
+                    }
                 }
 
-                return false;
-            }
+                if (ts.isModuleDeclaration(node)) {
+                    if (ts.isIdentifier(node.name)) {
+                        new Namespace(node, this);
+                    } else {
+                        new Module(node, this);
+                    }
 
-            if (ts.isInterfaceDeclaration(node)) {
-                new Interface(node, this)
+                    return false;
+                }
+
+                if (ts.isInterfaceDeclaration(node)) {
+                    new Interface(node, this)
+                    return true;
+                }
+
+                if (ts.isTypeAliasDeclaration(node)) {
+                    new TypeAlias(node, this)
+                    return true;
+                }
+
                 return true;
             }
-
-            if (ts.isTypeAliasDeclaration(node)) {
-                new TypeAlias(node, this)
-                return true;
-            }
-
-            return true;
-        });
+        );
     }
 
     public get name(): string {
@@ -128,6 +140,10 @@ export class File {
         return this._typeAliases;
     }
 
+    public get objectBinds(): Map<string, ObjectBind> {
+        return this._objectBinds;
+    }
+
     public get modules(): Map<string, Module> {
         return this._modules;
     }
@@ -136,7 +152,9 @@ export class File {
         return this._root;
     }
 
-    static getImportNames(node: ts.ImportDeclaration): string[] {
+    static
+
+    getImportNames(node: ts.ImportDeclaration): string[] {
         const importNames: string[] = [];
 
         if (node.importClause) {
@@ -198,6 +216,10 @@ export class File {
 
         this._modules.forEach((m) => {
             m.BuildDependencies();
+        });
+
+        this._objectBinds.forEach((ob) => {
+            ob.BuildDependencies();
         });
 
         this.removeInvalidItems();

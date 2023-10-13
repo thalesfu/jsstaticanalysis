@@ -10,6 +10,7 @@ import Interface from "./interface";
 import TypeAlias from "./typealias";
 import Package from "./package";
 import Module from "./module";
+import {ObjectBind} from "./objectbind";
 
 export class PackageDirectory {
     static readonly IMPORTABLE = ["index.d.ts", "index.d.tsx", "index.ts", "index.tsx", "index.js", "index.jsx"];
@@ -28,6 +29,7 @@ export class PackageDirectory {
     private readonly _modules: Map<string, Module> = new Map<string, Module>();
     private readonly _interfaces: Map<string, Interface> = new Map<string, Interface>();
     private readonly _typeAliases: Map<string, TypeAlias> = new Map<string, TypeAlias>();
+    private readonly _objectBinds: Map<string, ObjectBind> = new Map<string, ObjectBind>();
 
 
     constructor(location: string, pkg: Package) {
@@ -90,6 +92,10 @@ export class PackageDirectory {
 
     public get typeAliases(): Map<string, TypeAlias> {
         return this._typeAliases;
+    }
+
+    public get objectBinds(): Map<string, ObjectBind> {
+        return this._objectBinds;
     }
 
     public BuildFiles() {

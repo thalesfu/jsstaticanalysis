@@ -10,6 +10,7 @@ import TypeAlias from "./typealias";
 import Directory from "./directory";
 import PackageDirectory from "./packagedirectory";
 import Module from "./module";
+import {ObjectBind} from "./objectbind";
 
 export class Package {
     private readonly _location: string;
@@ -21,6 +22,7 @@ export class Package {
     private readonly _directories: Map<string, PackageDirectory> = new Map<string, PackageDirectory>();
     private readonly _files: Map<string, File> = new Map<string, File>();
     private readonly _classes: Map<string, Class> = new Map<string, Class>();
+    private readonly _objectBinds: Map<string, ObjectBind> = new Map<string, ObjectBind>();
     private readonly _variables: Map<string, Variable> = new Map<string, Variable>();
     private readonly _namespace: Map<string, Namespace> = new Map<string, Namespace>();
     private readonly _modules: Map<string, Module> = new Map<string, Module>();
@@ -110,6 +112,10 @@ export class Package {
 
     public get typeAliases(): Map<string, TypeAlias> {
         return this._typeAliases;
+    }
+
+    public get objectBinds(): Map<string, ObjectBind> {
+        return this._objectBinds;
     }
 
     public get directories(): Map<string, PackageDirectory> {

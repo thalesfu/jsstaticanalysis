@@ -6,6 +6,7 @@ import Interface from "./interface";
 import TypeAlias from "./typealias";
 import Module from "./module";
 import TagType from "./TagType";
+import ObjectBind from "./objectbind";
 
 export class Variable {
     private readonly _name: string;
@@ -14,9 +15,9 @@ export class Variable {
     private readonly _namespace: Namespace | undefined;
     private readonly _module: Module | undefined;
     private readonly _isExport: boolean = false;
-    private readonly _base: Map<string, Class | Interface | TypeAlias | Variable | undefined> = new Map<string, Class | Interface | TypeAlias | Variable | undefined>();
-    private readonly _dependencies: (Class | Interface | Variable | TypeAlias)[] = [];
-    private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias)[] = [];
+    private readonly _base: Map<string, Class | Interface | TypeAlias | Variable | ObjectBind | undefined> = new Map<string, Class | Interface | TypeAlias | Variable | ObjectBind | undefined>();
+    private readonly _dependencies: (Class | Interface | Variable | TypeAlias | ObjectBind)[] = [];
+    private readonly _beDependedOn: (Class | Interface | Variable | TypeAlias | ObjectBind)[] = [];
     private readonly _tags: Set<TagType> = new Set<TagType>();
 
     constructor(ast: ts.VariableDeclaration, from: File | Namespace | Module) {
@@ -86,7 +87,7 @@ export class Variable {
         return this._module;
     }
 
-    public get base(): Map<string, Class | Interface | TypeAlias | Variable | undefined> {
+    public get base(): Map<string, Class | Interface | TypeAlias | Variable | ObjectBind | undefined> {
         return this._base;
     }
 
@@ -94,11 +95,11 @@ export class Variable {
         return this._isExport;
     }
 
-    public get dependencies(): (Class | Interface | Variable | TypeAlias)[] {
+    public get dependencies(): (Class | Interface | Variable | ObjectBind | TypeAlias)[] {
         return this._dependencies;
     }
 
-    public get beDependedOn(): (Class | Interface | Variable | TypeAlias)[] {
+    public get beDependedOn(): (Class | Interface | Variable | ObjectBind | TypeAlias)[] {
         return this._beDependedOn;
     }
 
@@ -123,7 +124,7 @@ export class Variable {
     public BuildDependencies() {
         this.base.forEach((value, key) => {
             if (!value) {
-                const b = this.getImport(key);
+                const b = this.getBase(key);
                 if (b) {
                     this._base.set(key, b);
                     b.beDependedOn.push(this);
@@ -133,7 +134,7 @@ export class Variable {
         });
     }
 
-    private getBase(key:string):Class | Interface | Variable | TypeAlias | undefined{
+    private getBase(key:string):Class | Interface | Variable | TypeAlias | ObjectBind | undefined{
         const c = this._file?.classes.get(key);
         if (c) {
             return c;
@@ -147,6 +148,11 @@ export class Variable {
         const v = this._file?.variables.get(key);
         if (v) {
             return v;
+        }
+
+        const o = this._file?.objectBinds.get(key);
+        if (o) {
+            return o;
         }
 
         return  this.getImport(key);
