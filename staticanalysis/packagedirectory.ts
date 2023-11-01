@@ -11,6 +11,7 @@ import TypeAlias from "./typealias";
 import Package from "./package";
 import Module from "./module";
 import {ObjectBind} from "./objectbind";
+import ts from "typescript";
 
 export class PackageDirectory {
     static readonly IMPORTABLE = ["index.d.ts", "index.d.tsx", "index.ts", "index.tsx", "index.js", "index.jsx"];
@@ -39,6 +40,10 @@ export class PackageDirectory {
         this._path = path.relative(pkg.location, location)
         this._canImport = fs.readdirSync(location).filter((file) => PackageDirectory.IMPORTABLE.includes(file)).length > 0;
         this._package.directories.set(this.path, this);
+    }
+
+    public get scriptTarget(): ts.ScriptTarget {
+        return this._repo.scriptTarget;
     }
 
     public get path(): string {

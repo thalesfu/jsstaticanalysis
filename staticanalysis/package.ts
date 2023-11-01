@@ -11,6 +11,7 @@ import Directory from "./directory";
 import PackageDirectory from "./packagedirectory";
 import Module from "./module";
 import {ObjectBind} from "./objectbind";
+import ts from "typescript";
 
 export class Package {
     private readonly _location: string;
@@ -40,6 +41,10 @@ export class Package {
 
         this._location = location;
         this._pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    }
+
+    public get scriptTarget(): ts.ScriptTarget {
+        return this._repo.scriptTarget;
     }
 
     public get name(): string {
@@ -200,7 +205,19 @@ export class Package {
     }
 
     public static isInWhiteList(pkgPath: string): boolean {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        let pkg: any;
+
+        const content = fs.readFileSync(pkgPath, 'utf-8');
+
+        if (content.length=== 0) {
+            return false;
+        }
+
+        pkg = JSON.parse(content);
+
+        if (pkg.name=== undefined) {
+            return false;
+        }
 
         if (pkg.name.startsWith("@types/react")) {
             return true;

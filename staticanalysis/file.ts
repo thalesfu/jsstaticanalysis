@@ -43,7 +43,7 @@ export class File {
         this._root.files.set(this.path, this)
 
         const scriptKindElement = ts.ScriptKind[path.extname(this._name).toUpperCase().replace("\.", "") as keyof typeof ts.ScriptKind];
-        this._ast = ts.createSourceFile(location, fs.readFileSync(location, 'utf-8'), ts.ScriptTarget.ES2015, true, scriptKindElement);
+        this._ast = ts.createSourceFile(location, fs.readFileSync(location, 'utf-8'), parent.scriptTarget, true, scriptKindElement);
 
         visitAllChildren(this._ast, (node) => {
                 if (ts.isClassDeclaration(node)) {

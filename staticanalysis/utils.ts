@@ -1,4 +1,6 @@
 import ts from "typescript";
+import * as fs from "fs";
+import * as path from "path";
 import exp from "constants";
 import Class from "./class";
 import Variable from "./variable";
@@ -128,4 +130,29 @@ export function extractJSX(node: ts.Node): ts.JsxElement | ts.JsxSelfClosingElem
     }
 
     return undefined;
+}
+
+export function stripJsonComments(content: string): string {
+    // 去除单行注释
+    content = content.replace(/\/\/.*$/gm, '');
+
+    // 去除多行注释
+    content = content.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    return content;
+}
+
+export function getScriptTarget(target: string): ts.ScriptTarget {
+    if (!target) {
+        return ts.ScriptTarget.ES2015;
+    }
+
+    // 将字符串转换为对应的 ScriptTarget 枚举值
+    const targetElement = ts.ScriptTarget[target.toUpperCase() as keyof typeof ts.ScriptTarget];
+
+    if (targetElement) {
+        return targetElement;
+    }
+
+    return ts.ScriptTarget.ES2015;
 }

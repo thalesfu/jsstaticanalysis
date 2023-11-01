@@ -14,12 +14,15 @@ import Module from "./module";
 import Namespace from "./namespace";
 import {rootCertificates} from "tls";
 import {ObjectBind} from "./objectbind";
+import {stripJsonComments, getScriptTarget} from "./utils";
+import ts from "typescript";
 
 export class Repository {
     private readonly _rootlocation: string;
     private readonly _location: string
 
     private readonly _tsconfig: any
+    private readonly _scriptTarget: ts.ScriptTarget
     private readonly _packages: Map<string, Package> = new Map<string, Package>();
     private readonly _directories: Map<string, Directory> = new Map<string, Directory>();
     private readonly _files: Map<string, File> = new Map<string, File>();
@@ -40,7 +43,12 @@ export class Repository {
 
         this._rootlocation = location;
 
-        this._tsconfig = JSON.parse(fs.readFileSync(path.join(location, "tsconfig.json"), 'utf-8'));
+
+        const tsConfig = fs.readFileSync(path.join(location, "tsconfig.json"), 'utf-8');
+        const cleanTsConfig = stripJsonComments(tsConfig);
+
+        this._tsconfig = JSON.parse(cleanTsConfig);
+        this._scriptTarget = getScriptTarget(this._tsconfig.compilerOptions?.target);
 
         const stats = fs.statSync(location);
         if (!stats.isDirectory()) {
@@ -75,6 +83,10 @@ export class Repository {
         });
 
         this.buildPackageTags();
+    }
+
+    public get scriptTarget(): ts.ScriptTarget {
+        return this._scriptTarget;
     }
 
     public get location(): string {

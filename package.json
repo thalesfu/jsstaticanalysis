@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/react": "^18.2.23",
     "lodash": "^4.17.21",
+    "strip-json-comments": "^5.0.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   },

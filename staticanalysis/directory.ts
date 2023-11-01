@@ -10,6 +10,7 @@ import Interface from "./interface";
 import TypeAlias from "./typealias";
 import Module from "./module";
 import {ObjectBind} from "./objectbind";
+import ts from "typescript";
 
 export class Directory {
     static readonly IMPORTABLE = ["index.ts", "index.tsx", "index.js", "index.jsx"];
@@ -36,6 +37,10 @@ export class Directory {
         this._path = path.relative(repository.location, location)
         this._canImport = fs.readdirSync(location).filter((file) => Directory.IMPORTABLE.includes(file)).length > 0;
         this._repo.directories.set(this.path, this);
+    }
+
+    public get scriptTarget(): ts.ScriptTarget {
+        return this._repo.scriptTarget;
     }
 
     public get path(): string {
