@@ -17,36 +17,37 @@ export class Import {
     private readonly _file: File;
     private readonly _imported: Class | Variable | Namespace | Interface | TypeAlias | undefined;
     private readonly _from: Package | File | Directory | PackageDirectory | undefined;
+    private readonly _fromString: string;
 
     constructor(name: string, ast: ts.ImportDeclaration, file: File) {
         this._name = name;
         this._ast = ast;
         this._file = file;
 
-        let fromString = this._ast.moduleSpecifier.getText().replace(/["']/g, "");
+        this._fromString = this._ast.moduleSpecifier.getText().replace(/["']/g, "");
         let message = "";
-        let from = Import.GetFrom(fromString, this.file);
+        let from = Import.GetFrom(this._fromString, this.file);
         let imported: Class | Variable | Namespace | Interface | TypeAlias | undefined;
         if (!from) {
-            message += `Cannot find from path ${fromString}; `;
+            message += `Cannot find from path ${this._fromString}; `;
         } else {
             imported = Import.GetImported(this._name, from);
         }
 
         if (!imported) {
-            message += `Cannot find imported ${this._name} in from path ${fromString}; `;
+            message += `Cannot find imported ${this._name} in from path ${this._fromString}; `;
 
-            if (!isRelateImport(fromString) && !isAbsoluteImport(fromString)) {
-                fromString = "@types/" + fromString;
-                from = Import.GetFrom(fromString, this.file);
+            if (!isRelateImport(this._fromString) && !isAbsoluteImport(this._fromString)) {
+                this._fromString = "@types/" + this._fromString;
+                from = Import.GetFrom(this._fromString, this.file);
 
                 if (!from) {
-                    message += `Cannot find from path ${fromString}; `;
+                    message += `Cannot find from path ${this._fromString}; `;
                 } else {
                     imported = Import.GetImported(this._name, from);
 
                     if (!imported) {
-                        message += `Cannot find class ${this._name} in package ${fromString}; `;
+                        message += `Cannot find class ${this._name} in package ${this._fromString}; `;
                     }
                 }
             }
@@ -80,6 +81,10 @@ export class Import {
 
     public get imported(): Class | Variable | Namespace | Interface | TypeAlias | undefined {
         return this._imported;
+    }
+
+    get fromString(): string {
+        return this._fromString;
     }
 
     public static GetFrom(from: string, file: File): Package | File | Directory | PackageDirectory | undefined {
