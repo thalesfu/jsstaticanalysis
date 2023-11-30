@@ -1,10 +1,10 @@
-export class TSCodeImport {
+export class TSEnumDeclaration {
     private _filePath: string = "";
     private _name: string = "";
-    private _importFrom: string = "";
     private _hash: string = "";
     private _dependentHash: string = "";
-
+    private _isExported: boolean = false;
+    private _isDefaultExport: boolean = false;
 
     get filePath(): string {
         return this._filePath;
@@ -20,14 +20,6 @@ export class TSCodeImport {
 
     set name(value: string) {
         this._name = value;
-    }
-
-    get importFrom(): string {
-        return this._importFrom;
-    }
-
-    set importFrom(value: string) {
-        this._importFrom = value;
     }
 
     get hash(): string {
@@ -46,12 +38,30 @@ export class TSCodeImport {
         this._dependentHash = value;
     }
 
+
+    get isExported(): boolean {
+        return this._isExported;
+    }
+
+    set isExported(value: boolean) {
+        this._isExported = value;
+    }
+
+    get isDefaultExport(): boolean {
+        return this._isDefaultExport;
+    }
+
+    set isDefaultExport(value: boolean) {
+        this._isDefaultExport = value;
+    }
+
     toJSON() {
         return {
             filePath: this.filePath,
             name: this.name,
-            importFrom: this.importFrom,
             hash: this.hash,
+            isexport: this.isExported,
+            isdefaultexport: this.isDefaultExport,
         };
     }
 }

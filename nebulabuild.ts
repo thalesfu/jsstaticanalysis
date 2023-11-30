@@ -1,9 +1,10 @@
 import Repository from "./staticanalysis/repository";
-import {buildDeclaration, buildTSCodeImports, getSyntaxKindName} from "./tsnebula/nebulabuild";
+import {buildDeclaration, getSyntaxKindName} from "./tsnebula/nebulabuild";
 import ts, {SyntaxKind} from "typescript";
 import fs from "fs";
 import path from "path";
 import {PrintColors} from "./utils/printcolor";
+import lo from "lodash";
 
 function getCurrentTimestamp(): string {
     const now = new Date();
@@ -17,12 +18,12 @@ function ensureDirectoryExistence(filePath: string) {
     if (fs.existsSync(dirname)) {
         return true;
     }
-    fs.mkdirSync(dirname, { recursive: true });
+    fs.mkdirSync(dirname, {recursive: true});
 }
 
 const logFilename = `logs/${getCurrentTimestamp()}.log`;
 ensureDirectoryExistence(logFilename);
-const logStream = fs.createWriteStream(logFilename, { flags: 'a' });
+const logStream = fs.createWriteStream(logFilename, {flags: 'a'});
 const logStdout = process.stdout;
 
 console.log = function () {
@@ -37,38 +38,85 @@ const filePath = process.argv[2];
 const repo = new Repository(filePath);
 
 // buildTSCodeImports(repo);
-buildDeclaration(repo);
+// buildDeclaration(repo);
 
-// const nodes = new Map<string, number>();
-//
-// for (const file of repo.files.values()) {
-//     const p = path.relative(file.root.location, file.location)
-//     if (!(p.endsWith(".ts") || p.endsWith(".tsx"))) {
-//         continue;
-//     }
-//
-//     for (const fn of file.ast.getChildren()) {
-//         if (fn.kind === SyntaxKind.SyntaxList) {
-//             for (const sln of fn.getChildren()) {
-//                 const syntaxKindElement = getSyntaxKindName(sln);
-//                 const cv = nodes.get(syntaxKindElement);
-//                 if (cv) {
-//                     nodes.set(syntaxKindElement, cv + 1);
-//                 } else {
-//                     nodes.set(syntaxKindElement, 1);
-//                 }
-//
-//                 if (sln.kind === SyntaxKind.ClassDeclaration) {
-//                     console.log(PrintColors.cyan, file.location, PrintColors.reset);
-//                     console.log()
-//                     console.log(sln.getText());
-//                     console.log()
-//                 }
-//             }
-//         }
-//     }
-// }
-//
-// for (const [k, v] of nodes.entries()) {
-//     console.log(`${k}: ${v}`)
-// }
+const nodes = new Map<string, number>();
+
+const AddNode = (t: string) => {
+    const cv = nodes.get(t);
+    if (cv) {
+        nodes.set(t, cv + 1);
+    } else {
+        nodes.set(t, 1);
+    }
+}
+
+for (const file of repo.files.values()) {
+    const p = path.relative(file.root.location, file.location)
+    if (!(p.endsWith(".ts") || p.endsWith(".tsx"))) {
+        continue;
+    }
+
+    for (const fn of file.ast.getChildren()) {
+        if (fn.kind === SyntaxKind.SyntaxList) {
+
+            const ns = fn.getChildren();
+
+            const check = ts.isVariableStatement
+
+            const exist = lo.some(ns, (n) => {
+                return check(n);
+            });
+
+            if (exist) {
+                console.log(PrintColors.green, file.location, PrintColors.reset);
+            }
+
+            for (const sln of ns) {
+                const syntaxKindElement = getSyntaxKindName(sln);
+
+                if (check(sln)) {
+                    console.log(sln.getText());
+                    console.log()
+                    AddNode(syntaxKindElement);
+                    continue
+                }
+
+                if (ts.isImportDeclaration(sln)) {
+                    let detail = "\t";
+                    if (sln.importClause) {
+                        if (sln.importClause.name) {
+                            AddNode(syntaxKindElement);
+                        }
+
+                        if (sln.importClause.namedBindings) {
+                            if (ts.isNamedImports(sln.importClause.namedBindings)) {
+                                const es: string[] = [];
+                                for (const n of sln.importClause.namedBindings.elements) {
+                                    AddNode(syntaxKindElement);
+                                }
+                            } else if (ts.isNamespaceImport(sln.importClause.namedBindings)) {
+                                AddNode(syntaxKindElement);
+                            }
+                        }
+                    }
+                    continue
+                }
+
+                if (ts.isEnumDeclaration(sln)) {
+                    AddNode(syntaxKindElement);
+                    for (const member of sln.members) {
+                        AddNode(getSyntaxKindName(member));
+                    }
+                    continue
+                }
+
+                AddNode(syntaxKindElement);
+            }
+        }
+    }
+}
+
+for (const [k, v] of nodes.entries()) {
+    console.log(`${k}: ${v}`)
+}
