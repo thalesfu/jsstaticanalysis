@@ -1,3 +1,10 @@
+import File from "../staticanalysis/file";
+import ts, {SyntaxKind} from "typescript";
+import path from "path";
+import crypto from "crypto";
+import lo from "lodash";
+import fs from "fs";
+
 export class TSEnumMember {
     private _filePath: string = "";
     private _name: string = "";
@@ -83,4 +90,48 @@ export class TSEnumMember {
             value: this.value,
         };
     }
+}
+
+export function buildEnumMembers(file: File, n: ts.EnumDeclaration): TSEnumMember[] {
+    const members: TSEnumMember[] = [];
+
+    const p = path.relative(file.root.location, file.location);
+
+    for (const member of n.members) {
+        const m = new TSEnumMember();
+        m.filePath = p;
+        m.name = n.name.getText() + "." + member.name.getText();
+        const hash = crypto.createHash('sha512');
+        hash.update(m.filePath);
+        hash.update(m.name);
+        hash.update(member.getText());
+        m.hash = hash.digest('base64')
+
+        m.enum = n.name.getText();
+        m.member = member.name.getText();
+
+        if (member.initializer) {
+            m.value = member.initializer.getText().replace(/["']/g, "");
+            if (member.initializer.kind === SyntaxKind.StringLiteral) {
+                m.value_type = "string";
+            } else {
+                m.value_type = "number";
+            }
+        } else {
+            m.value_type = "undefined";
+        }
+
+        members.push(m);
+    }
+
+    return members;
+}
+
+export function saveEnumsMembersFile(enumsMembers: Map<string, lo.Dictionary<TSEnumMember[]>>) {
+
+    const data = Object.fromEntries(enumsMembers);
+
+    const jsonStr = JSON.stringify(data, null, 2);
+
+    fs.writeFileSync("dist/tsenummembers.json", jsonStr, "utf-8")
 }

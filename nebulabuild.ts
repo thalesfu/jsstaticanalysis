@@ -1,6 +1,6 @@
 import Repository from "./staticanalysis/repository";
 import {buildDeclaration, getSyntaxKindName} from "./tsnebula/nebulabuild";
-import ts, {SyntaxKind} from "typescript";
+import ts, {Node, SyntaxKind} from "typescript";
 import fs from "fs";
 import path from "path";
 import {PrintColors} from "./utils/printcolor";
@@ -38,7 +38,6 @@ const filePath = process.argv[2];
 const repo = new Repository(filePath);
 
 // buildTSCodeImports(repo);
-// buildDeclaration(repo);
 
 const nodes = new Map<string, number>();
 
@@ -62,7 +61,7 @@ for (const file of repo.files.values()) {
 
             const ns = fn.getChildren();
 
-            const check = ts.isVariableStatement
+            const check = isVariableStatement_StringLiteral;
 
             const exist = lo.some(ns, (n) => {
                 return check(n);
@@ -75,10 +74,23 @@ for (const file of repo.files.values()) {
             for (const sln of ns) {
                 const syntaxKindElement = getSyntaxKindName(sln);
 
-                if (check(sln)) {
-                    console.log(sln.getText());
-                    console.log()
-                    AddNode(syntaxKindElement);
+                if (ts.isVariableStatement(sln)) {
+                    if (sln.declarationList && sln.declarationList.declarations) {
+                        for (const d of sln.declarationList.declarations) {
+                            if (d.initializer) {
+                                AddNode(syntaxKindElement);
+                            } else {
+                                if (d.type) {
+                                    AddNode(syntaxKindElement);
+                                } else {
+                                    AddNode(syntaxKindElement);
+                                }
+                            }
+                        }
+                    } else {
+                        AddNode(syntaxKindElement);
+                    }
+
                     continue
                 }
 
@@ -119,4 +131,31 @@ for (const file of repo.files.values()) {
 
 for (const [k, v] of nodes.entries()) {
     console.log(`${k}: ${v}`)
+}
+
+
+buildDeclaration(repo);
+
+function isVariableStatement_StringLiteral(node: Node): boolean {
+    const check = ts.isArrayLiteralExpression;
+
+    if (check(node)) {
+        return true;
+    }
+
+    if (!ts.isVariableStatement(node)) {
+        return false;
+    }
+
+    if (!node.declarationList?.declarations) {
+        return false;
+    }
+
+    return lo.some(node.declarationList.declarations, (d) => {
+        if (!d.initializer) {
+            return false;
+        }
+
+        return check(d.initializer);
+    })
 }

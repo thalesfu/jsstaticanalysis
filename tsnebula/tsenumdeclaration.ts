@@ -1,3 +1,10 @@
+import File from "../staticanalysis/file";
+import ts, {SyntaxKind} from "typescript";
+import path from "path";
+import crypto from "crypto";
+import lo from "lodash";
+import fs from "fs";
+
 export class TSEnumDeclaration {
     private _filePath: string = "";
     private _name: string = "";
@@ -64,4 +71,42 @@ export class TSEnumDeclaration {
             isdefaultexport: this.isDefaultExport,
         };
     }
+}
+
+export function buildEnums(file: File, n: ts.EnumDeclaration): TSEnumDeclaration {
+    const e = new TSEnumDeclaration();
+
+    e.filePath = path.relative(file.root.location, file.location);
+    e.name = n.name.getText();
+
+    const hash = crypto.createHash('sha512');
+    hash.update(e.filePath);
+    hash.update(e.name);
+    hash.update(n.getText());
+    e.hash = hash.digest('base64')
+
+    if (n.modifiers) {
+        for (const modifier of n.modifiers) {
+            switch (modifier.kind) {
+                case SyntaxKind.DefaultKeyword:
+                    e.isDefaultExport = true;
+                    break;
+                case SyntaxKind.ExportKeyword:
+                    e.isExported = true;
+                    break;
+            }
+        }
+    }
+
+    return e;
+}
+
+export function saveEnumsFile(enums: TSEnumDeclaration[]) {
+    console.log("save " + enums.length + " enums to file")
+
+    const data = lo.groupBy(enums, (item) => item.filePath);
+
+    const jsonStr = JSON.stringify(data, null, 2);
+
+    fs.writeFileSync("dist/tsenumdeclarations.json", jsonStr, "utf-8")
 }

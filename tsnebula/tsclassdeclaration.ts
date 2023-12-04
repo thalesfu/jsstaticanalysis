@@ -1,3 +1,11 @@
+import File from "../staticanalysis/file";
+import ts, {SyntaxKind} from "typescript";
+import {PrintColors} from "../utils/printcolor";
+import path from "path";
+import crypto from "crypto";
+import lo from "lodash";
+import fs from "fs";
+
 export class TSClassDeclaration {
     private _filePath: string = "";
     private _name: string = "";
@@ -85,4 +93,61 @@ export class TSClassDeclaration {
             heritage: this.heritage,
         };
     }
+}
+
+export function buildClass(file: File, n: ts.ClassDeclaration): TSClassDeclaration | undefined {
+    if (!n.name) {
+        console.log(PrintColors.red, "ClassDeclaration without name: " + n.getText(), PrintColors.reset);
+        return undefined
+    }
+    const p = path.relative(file.root.location, file.location)
+
+    const tsClassDeclaration = new TSClassDeclaration();
+
+    tsClassDeclaration.filePath = p;
+    tsClassDeclaration.name = n.name.getText();
+
+    const hash = crypto.createHash('sha512');
+    hash.update(tsClassDeclaration.filePath);
+    hash.update(tsClassDeclaration.name);
+    hash.update(n.getText());
+    tsClassDeclaration.hash = hash.digest('base64')
+
+    if (n.modifiers) {
+        for (const modifier of n.modifiers) {
+            switch (modifier.kind) {
+                case  SyntaxKind.AbstractKeyword:
+                    tsClassDeclaration.isAbstract = true;
+                    break;
+                case SyntaxKind.DefaultKeyword:
+                    tsClassDeclaration.isDefaultExport = true;
+                    break;
+                case SyntaxKind.ExportKeyword:
+                    tsClassDeclaration.isExported = true;
+                    break;
+            }
+        }
+    }
+
+    if (n.heritageClauses) {
+        const heritages: string[] = [];
+        for (const heritageClause of n.heritageClauses) {
+            heritages.push(heritageClause.getText())
+        }
+
+        tsClassDeclaration.heritage = heritages.join(", ");
+    }
+
+    return tsClassDeclaration;
+}
+
+export function saveClassesFile(classDeclarations: TSClassDeclaration[]) {
+
+    console.log("save " + classDeclarations.length + " classes to file")
+
+    const data = lo.groupBy(classDeclarations, (item) => item.filePath);
+
+    const jsonStr = JSON.stringify(data, null, 2);
+
+    fs.writeFileSync("dist/tsclassdeclarations.json", jsonStr, "utf-8")
 }
