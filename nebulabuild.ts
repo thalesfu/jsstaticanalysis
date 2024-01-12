@@ -61,7 +61,7 @@ for (const file of repo.files.values()) {
 
             const ns = fn.getChildren();
 
-            const check = isVariableStatement_StringLiteral;
+            const check = ts.isImportDeclaration;
 
             const exist = lo.some(ns, (n) => {
                 return check(n);
@@ -74,10 +74,16 @@ for (const file of repo.files.values()) {
             for (const sln of ns) {
                 const syntaxKindElement = getSyntaxKindName(sln);
 
+                if (check(sln)) {
+                    console.log(sln.getText());
+                    console.log()
+                }
+
                 if (ts.isVariableStatement(sln)) {
                     if (sln.declarationList && sln.declarationList.declarations) {
                         for (const d of sln.declarationList.declarations) {
                             if (d.initializer) {
+                                AddNode(syntaxKindElement + "_" + getSyntaxKindName(d.initializer));
                                 AddNode(syntaxKindElement);
                             } else {
                                 if (d.type) {
@@ -136,8 +142,8 @@ for (const [k, v] of nodes.entries()) {
 
 buildDeclaration(repo);
 
-function isVariableStatement_StringLiteral(node: Node): boolean {
-    const check = ts.isArrayLiteralExpression;
+function isVariableStatement_sub(node: Node): boolean {
+    const check = ts.isCallExpression;
 
     if (check(node)) {
         return true;

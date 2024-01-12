@@ -6,14 +6,13 @@ import crypto from "crypto";
 import lo from "lodash";
 import fs from "fs";
 
-export class TSClassDeclaration {
+export class TSInterfaceDeclaration {
     private _filePath: string = "";
     private _name: string = "";
     private _hash: string = "";
     private _dependentHash: string = "";
     private _isExported: boolean = false;
     private _isDefaultExport: boolean = false;
-    private _isAbstract: boolean = false;
     private _typeParameter: string = "";
     private _heritage: string = "";
 
@@ -67,13 +66,6 @@ export class TSClassDeclaration {
         this._isDefaultExport = value;
     }
 
-    get isAbstract(): boolean {
-        return this._isAbstract;
-    }
-
-    set isAbstract(value: boolean) {
-        this._isAbstract = value;
-    }
 
     get typeParameter(): string {
         return this._typeParameter;
@@ -98,51 +90,47 @@ export class TSClassDeclaration {
             hash: this.hash,
             isexport: this.isExported,
             isdefaultexport: this.isDefaultExport,
-            isabsolute: this.isAbstract,
             typeParameter: this.typeParameter,
             heritage: this.heritage,
         };
     }
 }
 
-export function buildClass(file: File, n: ts.ClassDeclaration, exports: Set<string>): TSClassDeclaration | undefined {
+export function buildInterface(file: File, n: ts.InterfaceDeclaration, exports: Set<string>): TSInterfaceDeclaration | undefined {
     if (!n.name) {
-        console.log(PrintColors.red, "ClassDeclaration without name: " + n.getText(), PrintColors.reset);
+        console.log(PrintColors.red, "InterfaceDeclaration without name: " + n.getText(), PrintColors.reset);
         return undefined
     }
     const p = path.relative(file.root.location, file.location)
 
-    const tsClassDeclaration = new TSClassDeclaration();
+    const t = new TSInterfaceDeclaration();
 
-    tsClassDeclaration.filePath = p;
-    tsClassDeclaration.name = n.name.getText();
+    t.filePath = p;
+    t.name = n.name.getText();
 
     const hash = crypto.createHash('sha512');
-    hash.update(tsClassDeclaration.filePath);
-    hash.update(tsClassDeclaration.name);
+    hash.update(t.filePath);
+    hash.update(t.name);
     hash.update(n.getText());
-    tsClassDeclaration.hash = hash.digest('base64')
+    t.hash = hash.digest('base64')
 
     if (n.modifiers) {
         for (const modifier of n.modifiers) {
             switch (modifier.kind) {
-                case  SyntaxKind.AbstractKeyword:
-                    tsClassDeclaration.isAbstract = true;
-                    break;
                 case SyntaxKind.DefaultKeyword:
-                    tsClassDeclaration.isDefaultExport = true;
+                    t.isDefaultExport = true;
                     break;
                 case SyntaxKind.ExportKeyword:
-                    tsClassDeclaration.isExported = true;
+                    t.isExported = true;
                     break;
             }
         }
     }
 
-    if (!tsClassDeclaration.isExported) {
-        if (exports.has(tsClassDeclaration.name)) {
-            tsClassDeclaration.isExported = true;
-            exports.delete(tsClassDeclaration.name);
+    if (!t.isExported) {
+        if(exports.has(t.name)) {
+            t.isExported = true;
+            exports.delete(t.name);
         }
     }
 
@@ -152,7 +140,7 @@ export function buildClass(file: File, n: ts.ClassDeclaration, exports: Set<stri
             typeParameters.push(typeParameter.getText())
         }
 
-        tsClassDeclaration.typeParameter = typeParameters.join(", ");
+        t.typeParameter = typeParameters.join(", ");
     }
 
     if (n.heritageClauses) {
@@ -161,19 +149,19 @@ export function buildClass(file: File, n: ts.ClassDeclaration, exports: Set<stri
             heritages.push(heritageClause.getText())
         }
 
-        tsClassDeclaration.heritage = heritages.join(", ");
+        t.heritage = heritages.join(", ");
     }
 
-    return tsClassDeclaration;
+    return t;
 }
 
-export function saveClassesFile(classDeclarations: TSClassDeclaration[]) {
+export function saveInterfacesFile(interfaceDeclarations: TSInterfaceDeclaration[]) {
 
-    console.log("save " + classDeclarations.length + " classes to file")
+    console.log("save " + interfaceDeclarations.length + " interface to file")
 
-    const data = lo.groupBy(classDeclarations, (item) => item.filePath);
+    const data = lo.groupBy(interfaceDeclarations, (item) => item.filePath);
 
     const jsonStr = JSON.stringify(data, null, 2);
 
-    fs.writeFileSync("dist/tsclassdeclarations.json", jsonStr, "utf-8")
+    fs.writeFileSync("dist/tsinterfacedeclarations.json", jsonStr, "utf-8")
 }

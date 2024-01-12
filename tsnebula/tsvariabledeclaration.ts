@@ -84,7 +84,7 @@ export class TSVariableDeclaration {
     }
 }
 
-export function buildVariables(file: File, n: ts.VariableStatement): TSVariableDeclaration[] {
+export function buildVariables(file: File, n: ts.VariableStatement, exports: Set<string>): TSVariableDeclaration[] {
     if (!n.declarationList?.declarations) {
         return [];
     }
@@ -105,63 +105,71 @@ export function buildVariables(file: File, n: ts.VariableStatement): TSVariableD
     }
 
     for (const d of n.declarationList.declarations) {
-        const e = new TSVariableDeclaration();
+        const v = new TSVariableDeclaration();
 
-        e.filePath = p;
-        e.name = d.name.getText();
+        v.filePath = p;
+        v.name = d.name.getText();
 
         const hash = crypto.createHash('sha512');
-        hash.update(e.filePath);
-        hash.update(e.name);
+        hash.update(v.filePath);
+        hash.update(v.name);
         hash.update(d.getText());
-        e.hash = hash.digest('base64')
+        v.hash = hash.digest('base64')
 
-        e.isExported = isExported;
+        v.isExported = isExported;
+
+        if (!v.isExported) {
+            if (exports.has(v.name)) {
+                v.isExported = true;
+                exports.delete(v.name);
+            }
+        }
+
         switch (d.parent.flags) {
             case NodeFlags.Const:
-                e.flag = "const";
+                v.flag = "const";
                 break;
             case NodeFlags.Let:
-                e.flag = "let";
+                v.flag = "let";
                 break;
             default:
-                e.flag = "";
+                v.flag = "";
                 break;
         }
 
         if (d.initializer) {
             if (ts.isArrowFunction(d.initializer)) {
-                e.variableType = "ArrowFunction";
+                v.variableType = "ArrowFunction";
             } else if (ts.isCallExpression(d.initializer)) {
-                e.variableType = "CallExpression";
+                v.variableType = "CallExpression";
             } else if (ts.isObjectLiteralExpression(d.initializer)) {
-                e.variableType = "ObjectExpression";
+                v.variableType = "ObjectExpression";
             } else if (ts.isConditionalExpression(d.initializer)) {
-                e.variableType = "ConditionExpression";
+                v.variableType = "ConditionExpression";
             } else if (ts.isAsExpression(d.initializer)) {
-                e.variableType = "AsExpression";
+                v.variableType = "AsExpression";
             } else if (ts.isBinaryExpression(d.initializer)) {
-                e.variableType = "BinaryExpression";
+                v.variableType = "BinaryExpression";
             } else if (ts.isStringLiteral(d.initializer)) {
-                e.variableType = "StringLiteral";
+                v.variableType = "StringLiteral";
             } else if (ts.isNumericLiteral(d.initializer)) {
-                e.variableType = "NumericLiteral";
+                v.variableType = "NumericLiteral";
             } else if (ts.isPropertyAccessExpression(d.initializer)) {
-                e.variableType = "PropertyAccessExpression";
+                v.variableType = "PropertyAccessExpression";
             } else if (ts.isArrayLiteralExpression(d.initializer)) {
-                e.variableType = "ArrayLiteralExpression";
+                v.variableType = "ArrayLiteralExpression";
             }
         } else {
             if (d.type) {
-                e.variableType = "ObjectTypeLiteral"
+                v.variableType = "ObjectTypeLiteral"
             }
         }
 
-        if (!e.variableType) {
+        if (!v.variableType) {
             continue
         }
 
-        result.push(e)
+        result.push(v)
     }
 
     return result;

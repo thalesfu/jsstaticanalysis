@@ -73,7 +73,7 @@ export class TSEnumDeclaration {
     }
 }
 
-export function buildEnums(file: File, n: ts.EnumDeclaration): TSEnumDeclaration {
+export function buildEnums(file: File, n: ts.EnumDeclaration, exports: Set<string>): TSEnumDeclaration {
     const e = new TSEnumDeclaration();
 
     e.filePath = path.relative(file.root.location, file.location);
@@ -95,6 +95,13 @@ export function buildEnums(file: File, n: ts.EnumDeclaration): TSEnumDeclaration
                     e.isExported = true;
                     break;
             }
+        }
+    }
+
+    if (!e.isExported) {
+        if (exports.has(e.name)) {
+            e.isExported = true;
+            exports.delete(e.name);
         }
     }
 
